@@ -3,3 +3,4 @@ ultimate-crosscode-typedefs
 typedefs.json
 game.compiled.*
 .env
+out

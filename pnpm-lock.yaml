@@ -23,6 +23,10 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.7.3
+    devDependencies:
+      crosscode-typedef-inserter:
+        specifier: github:krypciak/crosscode-typedef-inserter
+        version: https://codeload.github.com/krypciak/crosscode-typedef-inserter/tar.gz/caab91e4aa26226a6ec646e8a620710f67a53d87
 
 packages:
 
@@ -98,6 +102,10 @@ packages:
     os: [darwin, linux, win32]
     hasBin: true
 
+  crosscode-typedef-inserter@https://codeload.github.com/krypciak/crosscode-typedef-inserter/tar.gz/caab91e4aa26226a6ec646e8a620710f67a53d87:
+    resolution: {tarball: https://codeload.github.com/krypciak/crosscode-typedef-inserter/tar.gz/caab91e4aa26226a6ec646e8a620710f67a53d87}
+    version: 0.0.0
+
   typescript@5.7.3:
     resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
@@ -171,6 +179,13 @@ snapshots:
       '@oven/bun-linux-x64-musl-baseline': 1.2.3
       '@oven/bun-windows-x64': 1.2.3
       '@oven/bun-windows-x64-baseline': 1.2.3
+
+  crosscode-typedef-inserter@https://codeload.github.com/krypciak/crosscode-typedef-inserter/tar.gz/caab91e4aa26226a6ec646e8a620710f67a53d87:
+    dependencies:
+      '@types/bun': 1.2.3
+      bun: 1.2.3
+      lebab: link:../../../../.local/share/pnpm/global/5/node_modules/lebab
+      typescript: 5.7.3
 
   typescript@5.7.3: {}
 

@@ -1,7 +1,8 @@
 {
   "exclude": [
     "ultimate-crosscode-typedefs",
-    "game.compiled.*"
+    "game.compiled.*",
+    "./out"
   ],
   "compilerOptions": {
     // Enable latest features

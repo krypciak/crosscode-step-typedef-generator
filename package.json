@@ -1,9 +1,8 @@
 {
     "name": "crosscode-typedef-inserter",
-    "module": "index.ts",
     "type": "module",
     "scripts": {
-        "start": "bun run --env-file=.env index.ts"
+        "start": "bun run --env-file=.env src/index.ts"
     },
     "dependencies": {
         "@types/bun": "^1.2.3",
@@ -18,5 +17,8 @@
         "overrides": {
             "lebab": "link:../../../../.local/share/pnpm/global/5/node_modules/lebab"
         }
+    },
+    "devDependencies": {
+        "crosscode-typedef-inserter": "github:krypciak/crosscode-typedef-inserter"
     }
 }

@@ -1,0 +1,22 @@
+{
+    "name": "crosscode-typedef-inserter",
+    "module": "index.ts",
+    "type": "module",
+    "scripts": {
+        "start": "bun run --env-file=.env index.ts"
+    },
+    "dependencies": {
+        "@types/bun": "^1.2.3",
+        "bun": "^1.2.3",
+        "lebab": "github:krypciak/lebab",
+        "typescript": "^5.0.0"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "bun"
+        ],
+        "overrides": {
+            "lebab": "link:../../../../.local/share/pnpm/global/5/node_modules/lebab"
+        }
+    }
+}

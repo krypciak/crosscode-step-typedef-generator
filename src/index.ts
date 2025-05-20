@@ -22,7 +22,7 @@ async function run() {
     const gameCompiledPath = '/home/krypek/Programming/repos/crosscode-typedef-inserter/game.compiled.lebab.js'
     const typeInfoPath = '/home/krypek/home/Programming/repos/crosscode-typedef-inserter/typedefs.json'
     const ultimateTypedefsPath = '/home/krypek/Programming/crosscode/ultimate-crosscode-typedefs'
-    const outTypedefModulesDir = '../out'
+    const outTypedefModulesDir = './out'
 
     const typedefModuleRecord: TypedefRecord = JSON.parse(await fs.promises.readFile(typeInfoPath, 'utf8'))
 

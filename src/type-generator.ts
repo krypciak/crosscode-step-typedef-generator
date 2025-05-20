@@ -4,48 +4,7 @@ import { assert } from './index'
 
 import * as path from 'path'
 import ts, { SyntaxKind } from 'typescript'
-
-const typeRawToType: Record<string, string> = {
-    Boolean: 'boolean',
-    Number: 'number',
-    Integer: 'number',
-    String: 'string',
-    VarName: 'string',
-    EnemySearch: 'string',
-    Vec3: 'Vec3',
-    Offset: 'Vec3',
-    Vec2: 'Vec2',
-    Face: 'Vec2',
-    LangLabel: 'ig.LangLabel.Data',
-    StringExpression: 'ig.Event.StringExpression',
-    NumberExpression: 'ig.Event.NumberExpression',
-    BooleanExpression: 'ig.Event.BooleanExpression',
-    Vec2Expression: 'ig.Event.Vec2Expression',
-    Vec3Expression: 'ig.Event.Vec3Expression',
-    NumberVary: 'ig.Event.NumberVary',
-    VarCondition: 'string',
-    Array: 'unknown[]',
-    Quest: 'sc.QuestModel.QuestId',
-    TaskIndex: 'sc.QuestModel.QuestId',
-    QuestNameSelect: 'sc.QuestModel.QuestId',
-    DropSelect: 'ig.Database.DropKey',
-    Image: 'string',
-    EffectSelect: 'string',
-    CollabLabelFilter: 'string[]',
-    AttackInfo: 'sc.AttackInfo.AttackSettings',
-    Effect: 'ig.EffectHandle.Settings',
-    ProxyRef: 'sc.ProxyTools.PrepareSrcProxySetting',
-    EnemyState: 'string',
-    Reaction: 'string',
-    Item: 'sc.ItemID',
-    Color: 'ig.RGBColorData | string',
-    EnemyType: 'string',
-    Timer: 'string',
-    QuestResetSelect: 'string',
-    GuiState: 'ig.GuiHook.State',
-    NumberArray: 'number[]',
-    WalkAnimConfig: 'string | ig.ActorEntity.WalkAnims',
-} as const
+import { typeRawToType } from './type-raw-to-type'
 
 const stepClasses = ['ig.EventStepBase', 'ig.ActionStepBase', 'ig.EffectStepBase'] as const
 type StepBase = (typeof stepClasses)[number]
@@ -162,17 +121,90 @@ export async function getNewTypes(
 
             if (ts.isObjectLiteralExpression(right)) return
 
-            let varList: VarListExt = typedefModuleRecord[module][nsPath]
-            /* if typed then dont touch */
-            if (varList) return
-
             newTypedefModuleRecord[module] ??= {}
-            varList = newTypedefModuleRecord[module][nsPath] ??= defVarList()
+            const varList = (newTypedefModuleRecord[module][nsPath] ??= defVarList())
             if (varList.parents.length == 0) {
                 varList.parents.push(stepBase)
             }
 
             if (ts.isFunctionExpression(right) || ts.isMethodDeclaration(right)) {
+                if (name == 'init' && varList.settings) {
+                    assert(right.body)
+                    const settingsVar = right.parameters?.[stepBase == 'ig.EffectStepBase' ? 1 : 0]?.getText()
+
+                    function figureOutFieldType(
+                        rest: string,
+                        settingsVars: Record<string, Field>,
+                        settingsTypeString: string
+                    ): Field {
+                        if (rest.startsWith('new sc.COMBAT_SHIELDS[')) {
+                            return { type: 'sc.CombatShield' }
+                        } else if (rest.startsWith('new')) {
+                            const className = rest.substring('new '.length, rest.indexOf('('))
+                            return { type: className }
+                        } else if (rest.startsWith('ig.EffectConfig.loadParticleData')) {
+                            return { type: 'ig.ParticleData' }
+                        } else if (rest.startsWith('ig.bgm.loadTrack')) {
+                            return { type: 'ig.BgmTrack' }
+                        } else if (rest.startsWith('ig.bgm.loadTrackSet')) {
+                            return { type: 'ig.BgmTrackSet' }
+                        } else if (rest.startsWith('sc.ProxyTools.prepareSrc')) {
+                            return { type: 'sc.ProxySpawnerBase' }
+                        } else if (rest.startsWith('RegExp')) {
+                            return { type: 'RegExp' }
+                        } else if (rest.startsWith('KEY_SPLINES')) {
+                            return { type: 'KeySpline' }
+                        } else if ((rest.startsWith('ig.') || rest.startsWith('sc.')) && rest.includes('[')) {
+                            const enumName = rest.substring(0, rest.indexOf('['))
+                            return { type: enumName }
+                        } else if (rest == settingsVar || rest == `ig.copy(${settingsVar})`) {
+                            return { type: settingsTypeString }
+                        } else if (settingsVar && rest.startsWith(`${settingsVar}.`)) {
+                            if (rest.includes('||')) {
+                                if (rest.match(/\[.+\]/) || rest.includes('(')) return { type: 'unknown' }
+                                const settingsPropVarName = rest.substring(`${settingsVar}.`.length, rest.indexOf(' '))
+                                const field = settingsVars[settingsPropVarName]
+                                if (!field) return { type: 'unknown' }
+                                return { type: field.type, isOptional: false }
+                            } else if (rest.includes('?')) {
+                                if (rest.includes('[') || rest.includes('(')) return { type: 'unknown' }
+                                const settingsPropVarName = rest.substring(`${settingsVar}.`.length, rest.indexOf(' '))
+                                const field = settingsVars[settingsPropVarName]
+                                return { type: field.type, isOptional: false }
+                            } else {
+                                if (rest.includes('==')) return { type: 'boolean' }
+                                const settingsPropVarName = rest.substring(`${settingsVar}.`.length)
+
+                                if (settingsPropVarName.includes('.')) {
+                                    return { type: 'unknown' }
+                                } else {
+                                    const field = settingsVars[settingsPropVarName]
+                                    if (!field) return { type: 'unknown' }
+                                    return field
+                                }
+                            }
+                        } else {
+                            // console.log(settingsVar, rest, settingsVar)
+                        }
+                        return { type: 'unknown' }
+                    }
+
+                    for (const statement of right.body.statements) {
+                        if (!ts.isExpressionStatement(statement)) continue
+                        const text = statement.getText()
+                        if (!text.startsWith('this.') || !text.includes('=')) continue
+
+                        const thisVarName = text.substring('this.'.length, text.indexOf('=')).trim()
+                        if (thisVarName.includes('.')) continue
+                        const rest = text.substring(text.indexOf('=') + 1).trim()
+
+                        const field = figureOutFieldType(rest, varList.settings, `${nsStack}.Settings`)
+                        if (field.type != 'unknown') {
+                            varList.fields[thisVarName] = field
+                        }
+                    }
+                    return
+                }
                 if (getFunction(stepBase, name)) return
 
                 const getReturnType = () => {
@@ -237,11 +269,8 @@ export async function getNewTypes(
                         const name = attib.name.getText()
 
                         const getAttibDetails = () => {
-                            assert(ts.isObjectLiteralExpression(attib.initializer))
-                            const props = attib.initializer.properties
-
-                            const findProp = (name: string, assertExists?: boolean) => {
-                                const typeProp = props.find(prop => prop.name?.getText() == name)
+                            function findProp(node: ts.ObjectLiteralExpression, name: string, assertExists?: boolean) {
+                                const typeProp = node.properties.find(prop => prop.name?.getText() == name)
                                 if (!typeProp) {
                                     if (assertExists) assert(false)
                                     return
@@ -249,21 +278,48 @@ export async function getNewTypes(
                                 assert(ts.isPropertyAssignment(typeProp))
                                 return typeProp.initializer
                             }
-                            const optionalValueProp = findProp('_optional')
+
+                            const initializer = attib.initializer
+                            assert(ts.isObjectLiteralExpression(initializer))
+                            const optionalValueProp = findProp(initializer, '_optional')
                             let isOptional = false
                             if (optionalValueProp) {
                                 isOptional = optionalValueProp.kind == SyntaxKind.TrueKeyword
                             }
+                            const defaultValueProp = findProp(initializer, '_default')
+                            if (defaultValueProp) {
+                                isOptional = true
+                            }
 
-                            const typeValueProp = findProp('_type', true)!
+                            const typeValueProp = findProp(initializer, '_type', true)!
                             assert(ts.isStringLiteral(typeValueProp))
                             const typeRaw = typeValueProp.text
 
                             let type: string = 'unknown'
 
                             if (typeRawToType[typeRaw]) type = typeRawToType[typeRaw]
-                            if (type == 'unknown') {
-                                console.log(nsPath, typeRaw)
+                            else if (typeRaw == 'Select') {
+                                const selectTypeProp = findProp(initializer, '_select')
+                                if (selectTypeProp) {
+                                    if (ts.isStringLiteral(selectTypeProp)) {
+                                        type = 'string'
+                                    } else {
+                                        assert(ts.isPropertyAccessExpression(selectTypeProp))
+                                        const selectType = selectTypeProp.getText()
+                                        type = `keyof typeof ${selectType}`
+                                    }
+                                }
+                            } else if (typeRaw == 'Array') {
+                                const subValueProp = findProp(initializer, '_sub', true)!
+                                if (ts.isStringLiteral(subValueProp)) {
+                                    type = `${typeRawToType[subValueProp.text]}[]`
+                                } else {
+                                    assert(ts.isObjectLiteralExpression(subValueProp))
+                                    const typeValueProp = findProp(subValueProp, '_type', true)!
+                                    assert(ts.isStringLiteral(typeValueProp))
+                                    type = `${typeRawToType[typeValueProp.text]}[]`
+                                }
+                            } else {
                             }
 
                             return { type, isOptional }

@@ -165,7 +165,8 @@ export async function getNewTypes(
                                 const settingsPropVarName = rest.substring(`${settingsVar}.`.length, rest.indexOf(' '))
                                 const field = settingsVars[settingsPropVarName]
                                 if (!field) return { type: 'unknown' }
-                                return { type: field.type, isOptional: false }
+                                const isNullable = rest.includes('|| null')
+                                return { type: isNullable ? `Nullable<${field.type}>` : field.type, isOptional: false }
                             } else if (rest.includes('?')) {
                                 if (rest.includes('[') || rest.includes('(')) return { type: 'unknown' }
                                 const settingsPropVarName = rest.substring(`${settingsVar}.`.length, rest.indexOf(' '))
@@ -296,12 +297,17 @@ export async function getNewTypes(
                             const typeRaw = typeValueProp.text
 
                             let type: string = 'unknown'
+                            const selectTypeProp = findProp(initializer, '_select')
 
-                            if (typeRawToType[typeRaw]) type = typeRawToType[typeRaw]
-                            else if (typeRaw == 'Select') {
-                                const selectTypeProp = findProp(initializer, '_select')
+                            if (typeRaw == 'Select' || selectTypeProp) {
                                 if (selectTypeProp) {
-                                    if (ts.isStringLiteral(selectTypeProp)) {
+                                    if (
+                                        ts.isIdentifier(selectTypeProp) ||
+                                        ts.isObjectLiteralExpression(selectTypeProp) ||
+                                        ts.isArrayLiteralExpression(selectTypeProp)
+                                    ) {
+                                        type = 'unknown'
+                                    } else if (ts.isStringLiteral(selectTypeProp)) {
                                         type = 'string'
                                     } else {
                                         assert(ts.isPropertyAccessExpression(selectTypeProp))
@@ -309,7 +315,8 @@ export async function getNewTypes(
                                         type = `keyof typeof ${selectType}`
                                     }
                                 }
-                            } else if (typeRaw == 'Array') {
+                            } else if (typeRawToType[typeRaw]) type = typeRawToType[typeRaw]
+                            else if (typeRaw == 'Array') {
                                 const subValueProp = findProp(initializer, '_sub', true)!
                                 if (ts.isStringLiteral(subValueProp)) {
                                     type = `${typeRawToType[subValueProp.text]}[]`

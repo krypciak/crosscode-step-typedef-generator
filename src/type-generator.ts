@@ -1,6 +1,6 @@
-import type { VarList, Function, Field } from 'crosscode-typedef-inserter'
+import type { VarList, Function, Field } from 'crosscode-typedef-inserter/src/modules-info'
 import type { TypedefRecord, TypedefRecordExt, VarListExt } from './index'
-import { assert } from './index'
+import { assert } from 'crosscode-typedef-inserter/src/misc'
 
 import * as path from 'path'
 import ts, { SyntaxKind } from 'typescript'

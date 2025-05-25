@@ -1,4 +1,5 @@
-import { assert, type TypedefRecord, type VarListExt } from '.'
+import { type TypedefRecord, type VarListExt } from '.'
+import { assert } from 'crosscode-typedef-inserter/src/misc'
 import * as fs from 'fs'
 
 export async function write(
